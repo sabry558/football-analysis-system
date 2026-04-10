@@ -1,3 +1,6 @@
 myenv
 football-players-detection-1
+input_video
 *.pt
+*.pyc
+*.pyo
