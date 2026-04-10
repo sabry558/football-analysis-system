@@ -1,0 +1,7 @@
+i finetuned the model using kaggle
+
+after kaggle finished training i downloaded the best model
+
+it is located output in kaggle 
+
+the path of it is "runs\detect\train\weights\best.pt"
