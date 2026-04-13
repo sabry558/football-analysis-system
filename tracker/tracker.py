@@ -1,7 +1,10 @@
+import cv2
 from ultralytics import YOLO
 import supervision as sv
 import pickle 
 import os
+import numpy as np
+from utils import get_center_of_bbox, get_width_of_bbox
 class Tracker:
     def __init__(self, model_path):
         self.model = YOLO(model_path)
@@ -60,3 +63,55 @@ class Tracker:
             with open(stub_path,'wb') as f:
                 pickle.dump(tracks,f)
         return tracks                        
+    
+    def draw_ellipse(self,frame,bbox,color,track_id=None):
+        y2=int(bbox[3])
+        center_x,_=get_center_of_bbox(bbox)
+        width=get_width_of_bbox(bbox)
+
+        cv2.ellipse(frame,
+                    center=(center_x,y2),
+                    axes=(width,int(0.35*width)),
+                    angle=0,
+                    startAngle=-45,
+                    endAngle=235,
+                    color=color,
+                    thickness=2,
+                    lineType=cv2.LINE_4)
+        rectangle_width=40
+        rectangle_height=20
+        x1_rect=int(center_x-rectangle_width//2)
+        x2_rect=int(center_x+rectangle_width//2)
+        y1_rect=int(y2-rectangle_height//2)+15
+        y2_rect=int(y2+rectangle_height//2)+15
+
+        if track_id is not None:
+            cv2.rectangle(frame,(int(x1_rect),int(y1_rect)),(int(x2_rect),int(y2_rect)),color,cv2.FILLED)
+            cv2.putText(frame,str(track_id),(x1_rect+12,y1_rect+15),cv2.FONT_HERSHEY_SIMPLEX,0.6,(0,0,0),2)
+        return frame
+    def draw_traingle(self,frame,bbox,color):
+        y=int(bbox[1])
+        center_x,_=get_center_of_bbox(bbox)
+        traingle_points=np.array([[center_x,y],[center_x-10,y-20],[center_x+10,y-20]])
+        cv2.drawContours(frame,[traingle_points],0,color,cv2.FILLED)
+        cv2.drawContours(frame,[traingle_points],0,(0,0,0),2)
+
+        return frame 
+
+    def draw_annotations(self,video_frames,tracks):
+        output_frames=[]
+        for frame_num,frame in enumerate(video_frames):
+            frame=frame.copy()
+
+            player_tracks=tracks['player'][frame_num]
+            referee_tracks=tracks['referee'][frame_num] 
+            ball_tracks=tracks['ball'][frame_num]
+            for track_id,player in player_tracks.items():
+                frame=self.draw_ellipse(frame,player['bbox'],(0,0,255),track_id)
+
+            for _,referee in referee_tracks.items():
+                frame=self.draw_ellipse(frame,referee['bbox'],(255,0,0))  
+            for _,ball in ball_tracks.items():
+                frame=self.draw_traingle(frame,ball['bbox'],(0,255,0))
+            output_frames.append(frame)
+        return output_frames        
