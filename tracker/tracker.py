@@ -4,12 +4,20 @@ import supervision as sv
 import pickle 
 import os
 import numpy as np
+import pandas as pd
 from utils import get_center_of_bbox, get_width_of_bbox
 class Tracker:
     def __init__(self, model_path):
         self.model = YOLO(model_path)
         self.tracker = sv.ByteTrack()
-    
+
+    def interpolate_ball_position(self,ball_postion):
+        ball_positions=[x.get(1,{}).get('bbox',[]) for x in ball_postion] 
+        df_ball_positions=pd.DataFrame(ball_positions,columns=['x1','y1','x2','y2'])
+        df_ball_positions=df_ball_positions.interpolate(method='linear',limit_direction='both')
+        df_ball_positions=df_ball_positions.bfill()
+        ball_positions=[{1:{'bbox':x}} for x in df_ball_positions.to_numpy().tolist()]
+        return ball_positions
     def detect_frames(self, frames,batch_size=16):
         detections = []
         for i in range(0, len(frames), batch_size):
@@ -17,7 +25,6 @@ class Tracker:
             results = self.model.predict(batch_frames,conf=0.1)
             detections+=results
         return detections
-
   
     def get_object_tracks(self, frames,read_from_stub=False,stub_path=None):
         if read_from_stub and stub_path is not None and os.path.exists(stub_path):
@@ -97,8 +104,23 @@ class Tracker:
         cv2.drawContours(frame,[traingle_points],0,(0,0,0),2)
 
         return frame 
+    
+    def draw_team_ball_control(self,frame,frame_num,team_ball_control):
+        overlay=frame.copy()
+        cv2.rectangle(overlay,(1350,850),(1900,970),(255,255,255),-1)
+        alpha=0.4
+        cv2.addWeighted(overlay,alpha,frame,1-alpha,0,frame)
+        team_ball_control_till_frame=team_ball_control[:frame_num+1]
+        team_1_num_frames=team_ball_control_till_frame[team_ball_control_till_frame=='team_1'].shape[0]
+        team_2_num_frames=team_ball_control_till_frame[team_ball_control_till_frame=='team_2'].shape[0]
+        team_1=team_1_num_frames/(team_1_num_frames+team_2_num_frames+1e-5)
+        team_2=team_2_num_frames/(team_1_num_frames+team_2_num_frames+1e-5)
+        
+        cv2.putText(frame,f'Team 1 Ball Control: {team_1*100:.2f}%',(1400,900),cv2.FONT_HERSHEY_SIMPLEX,1,(0,0,0),3)
+        cv2.putText(frame,f'Team 2 Ball Control: {team_2*100:.2f}%',(1400,950),cv2.FONT_HERSHEY_SIMPLEX,1,(0,0,0),3)
+        return frame
 
-    def draw_annotations(self,video_frames,tracks):
+    def draw_annotations(self,video_frames,tracks,team_ball_control):
         output_frames=[]
         for frame_num,frame in enumerate(video_frames):
             frame=frame.copy()
@@ -107,11 +129,15 @@ class Tracker:
             referee_tracks=tracks['referee'][frame_num] 
             ball_tracks=tracks['ball'][frame_num]
             for track_id,player in player_tracks.items():
-                frame=self.draw_ellipse(frame,player['bbox'],(0,0,255),track_id)
+                player_team_color=player.get('team_color',(0,255,255))
+                frame=self.draw_ellipse(frame,player['bbox'],player_team_color,track_id)
+                if player.get('has_ball',False):
+                    frame=self.draw_traingle(frame,player['bbox'],(0,0,255))
 
             for _,referee in referee_tracks.items():
                 frame=self.draw_ellipse(frame,referee['bbox'],(255,0,0))  
             for _,ball in ball_tracks.items():
                 frame=self.draw_traingle(frame,ball['bbox'],(0,255,0))
+            frame=self.draw_team_ball_control(frame,frame_num,team_ball_control)    
             output_frames.append(frame)
         return output_frames        

@@ -1,1 +1,1 @@
-from .team_assigner import teanAssigner
+from .team_assigner import teamAssigner
