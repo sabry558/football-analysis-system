@@ -3,10 +3,16 @@ from player_ball_assigner import playerBallAssigner
 from utils import read_video, save_video
 from tracker import Tracker
 import numpy as np
+from camera_movement_estimator import CameraMovementEstimator
 def main():
   video_frames=read_video("input_video/input.mp4")
   tracker=Tracker('model training/model/best.pt')
   tracks=tracker.get_object_tracks(video_frames,read_from_stub=True,stub_path='stub/tracks.pkl')
+
+  CameraMovementEstimator=CameraMovementEstimator(video_frames[0])
+  camera_movement_per_frame=CameraMovementEstimator.get_camera_movement(video_frames,read_from_stub=True,stub_path='stub/camera_movement.pkl')
+  CameraMovementEstimator.add_adjust_positions_to_tracks(tracks,camera_movement_per_frame)
+  tracker.add_position_to_tracks(tracks)
   tracks['ball']=tracker.interpolate_ball_position(tracks['ball'])
   team_assigner=teamAssigner()
   team_assigner.assign_team_color(video_frames[0],tracks['player'][0])
@@ -31,6 +37,8 @@ def main():
         team_ball_control.append(team_ball_control[-1])  
      team_ball_control=np.array(team_ball_control)    
   output_frames=tracker.draw_annotations(video_frames,tracks,team_ball_control)
+
+  output_frames=CameraMovementEstimator.draw_camera_movement(output_frames,camera_movement_per_frame)
   save_video(output_frames,"output_video/output.mp4")
 if __name__ == "__main__":
     main()    
