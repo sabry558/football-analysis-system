@@ -5,6 +5,7 @@ from tracker import Tracker
 import numpy as np
 from camera_movement_estimator import CameraMovementEstimator
 from view_transformer import ViewTransformer
+from speed_and_distance_estimator import SpeedAndDistance_Estimator
 def main():
   video_frames=read_video("input_video/input.mp4")
   tracker=Tracker('model training/model/best.pt')
@@ -16,8 +17,10 @@ def main():
   tracker.add_position_to_tracks(tracks)
   view_transformer=ViewTransformer()
   view_transformer.add_transformed_position_to_tracks(tracks)
-  
+
   tracks['ball']=tracker.interpolate_ball_position(tracks['ball'])
+  speed_and_distance_estimator=SpeedAndDistance_Estimator()
+  speed_and_distance_estimator.add_speed_and_distance_to_tracks(tracks)
   team_assigner=teamAssigner()
   team_assigner.assign_team_color(video_frames[0],tracks['player'][0])
 
@@ -43,6 +46,7 @@ def main():
   output_frames=tracker.draw_annotations(video_frames,tracks,team_ball_control)
 
   output_frames=CameraMovementEstimator.draw_camera_movement(output_frames,camera_movement_per_frame)
-  save_video(output_frames,"output_video/output.mp4")
+  speed_and_distance_estimator.draw_speed_and_distance(output_frames,tracks)
+  save_video(output_frames,"output_video/output.avi")
 if __name__ == "__main__":
     main()    
