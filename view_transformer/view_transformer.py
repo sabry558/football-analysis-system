@@ -2,7 +2,15 @@ import numpy as np
 import cv2
 
 class ViewTransformer():
+    """
+    Transforms pixel coordinates from a 2D camera perspective into a 2D top-down view 
+    (birds-eye view) using perspective transformation.
+    """
     def __init__(self):
+        """
+        Initializes the ViewTransformer by calculating the perspective transformation 
+        matrix from predefined pixel vertices to target court vertices.
+        """
         court_width = 68
         court_length = 23.32
 
@@ -24,6 +32,16 @@ class ViewTransformer():
         self.persepctive_trasnformer = cv2.getPerspectiveTransform(self.pixel_vertices, self.target_vertices)
 
     def transform_point(self,point):
+        """
+        Applies perspective transformation to a single point.
+
+        Args:
+            point (list or tuple or numpy.ndarray): The (x, y) coordinates of the point.
+
+        Returns:
+            numpy.ndarray or None: The transformed (x, y) coordinates, or None if the point 
+                                   lies outside the polygon defined by `pixel_vertices`.
+        """
         p = (int(point[0]),int(point[1]))
         is_inside = cv2.pointPolygonTest(self.pixel_vertices,p,False) >= 0 
         if not is_inside:
@@ -34,6 +52,12 @@ class ViewTransformer():
         return tranform_point.reshape(-1,2)
 
     def add_transformed_position_to_tracks(self,tracks):
+        """
+        Iterates over all object tracks and adds their transformed coordinates.
+
+        Args:
+            tracks (dict): Dictionary comprising frame-by-frame object tracks.
+        """
         for object, object_tracks in tracks.items():
             for frame_num, track in enumerate(object_tracks):
                 for track_id, track_info in track.items():

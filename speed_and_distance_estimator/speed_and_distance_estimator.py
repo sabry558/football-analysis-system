@@ -3,11 +3,27 @@ import sys
 from utils import calc_distance ,get_foot_position
 
 class SpeedAndDistance_Estimator():
+    """
+    Estimator used for calculating the speed and distance covered by objects (like players)
+    across the frames using transformed field coordinates.
+    """
     def __init__(self):
+        """
+        Initializes the SpeedAndDistance_Estimator class with a frame window
+        for speed calculation intervals and the video's frame rate.
+        """
         self.frame_window=5
         self.frame_rate=24
     
     def add_speed_and_distance_to_tracks(self,tracks):
+        """
+        Computes distance covered and speed over frame windows, and adds them 
+        into the track dictionaries.
+
+        Args:
+            tracks (dict): Dictionary comprising frame-by-frame object tracks. 
+                           Expected keys: 'player', 'ball', 'referees', etc.
+        """
         total_distance= {}
 
         for object, object_tracks in tracks.items():
@@ -47,6 +63,16 @@ class SpeedAndDistance_Estimator():
                         tracks[object][frame_num_batch][track_id]['distance'] = total_distance[object][track_id]
     
     def draw_speed_and_distance(self,frames,tracks):
+        """
+        Draws the estimated speed (km/h) and total distance (m) on the video frames for each player.
+
+        Args:
+            frames (list): List of video frames (numpy arrays).
+            tracks (dict): Dictionary with track information.
+
+        Returns:
+            list: The list of frames annotated with speed and distance textual overlays.
+        """
         output_frames = []
         for frame_num, frame in enumerate(frames):
             for object, object_tracks in tracks.items():

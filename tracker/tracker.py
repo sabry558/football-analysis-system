@@ -7,11 +7,27 @@ import numpy as np
 import pandas as pd
 from utils import get_center_of_bbox, get_width_of_bbox,get_foot_position
 class Tracker:
+    """
+    A class for tracking objects (players, referee, ball) in a football match video using YOLO and ByteTrack.
+    """
+
     def __init__(self, model_path):
+        """
+        Initializes the Tracker with a specific YOLO model.
+
+        Args:
+            model_path (str): The file path to the YOLO model weights.
+        """
         self.model = YOLO(model_path)
         self.tracker = sv.ByteTrack()
 
     def add_position_to_tracks(self,tracks):
+        """
+        Calculates and adds the position (center for ball, foot position for others) to the tracking data.
+
+        Args:
+            tracks (dict): Dictionary containing object track information.
+        """
         for object, object_tracks in tracks.items():
             for frame_num, track in enumerate(object_tracks):
                 for track_id, track_info in track.items():
@@ -22,6 +38,15 @@ class Tracker:
                         position = get_foot_position(bbox)
                     tracks[object][frame_num][track_id]['position'] = position
     def interpolate_ball_position(self,ball_postion):
+        """
+        Functions interpolates missing ball positions in the tracking data.
+
+        Args:
+            ball_postion (list): A list of dictionaries representing the ball's position across frames.
+
+        Returns:
+            list: Interpolated list of ball positions.
+        """
         ball_positions=[x.get(1,{}).get('bbox',[]) for x in ball_postion] 
         df_ball_positions=pd.DataFrame(ball_positions,columns=['x1','y1','x2','y2'])
         df_ball_positions=df_ball_positions.interpolate(method='linear',limit_direction='both')
@@ -29,6 +54,16 @@ class Tracker:
         ball_positions=[{1:{'bbox':x}} for x in df_ball_positions.to_numpy().tolist()]
         return ball_positions
     def detect_frames(self, frames,batch_size=16):
+        """
+        Detects objects in the video frames using the YOLO model.
+
+        Args:
+            frames (list): List of video frames to infer.
+            batch_size (int, optional): The batch size for prediction. Defaults to 16.
+
+        Returns:
+            list: A list of detection results for each frame.
+        """
         detections = []
         for i in range(0, len(frames), batch_size):
             batch_frames = frames[i:i+batch_size]
@@ -37,6 +72,17 @@ class Tracker:
         return detections
   
     def get_object_tracks(self, frames,read_from_stub=False,stub_path=None):
+        """
+        Gets the object tracks, utilizing ByteTrack upon YOLO detections.
+
+        Args:
+            frames (list): Frames to extract tracks from.
+            read_from_stub (bool, optional): Flag to load tracking data from file. Defaults to False.
+            stub_path (str, optional): The path to the stub pickle file. Defaults to None.
+
+        Returns:
+            dict: The dictionary containing structured tracking data for players, ball, and referee.
+        """
         if read_from_stub and stub_path is not None and os.path.exists(stub_path):
             with open(stub_path, 'rb') as f:
                 return pickle.load(f)
@@ -82,6 +128,18 @@ class Tracker:
         return tracks                        
     
     def draw_ellipse(self,frame,bbox,color,track_id=None):
+        """
+        Draws an ellipse around an object at its base position.
+
+        Args:
+            frame (np.ndarray): Target video frame to draw on.
+            bbox (list): Bounding box of the object.
+            color (tuple): RGB color tuple for the ellipse.
+            track_id (int, optional): Identifier to overlay on the object. Defaults to None.
+
+        Returns:
+            np.ndarray: Assessed image frame with drawn shapes.
+        """
         y2=int(bbox[3])
         center_x,_=get_center_of_bbox(bbox)
         width=get_width_of_bbox(bbox)
@@ -107,6 +165,17 @@ class Tracker:
             cv2.putText(frame,str(track_id),(x1_rect+12,y1_rect+15),cv2.FONT_HERSHEY_SIMPLEX,0.6,(0,0,0),2)
         return frame
     def draw_traingle(self,frame,bbox,color):
+        """
+        Draws a pointing triangle above the bound box (e.g., ball possessor).
+
+        Args:
+            frame (np.ndarray): The target video frame.
+            bbox (list): Bounding box of the object.
+            color (tuple): RGB color for the generated triangle.
+
+        Returns:
+            np.ndarray: Returned frame containing the drawn triangular marking.
+        """
         y=int(bbox[1])
         center_x,_=get_center_of_bbox(bbox)
         traingle_points=np.array([[center_x,y],[center_x-10,y-20],[center_x+10,y-20]])
@@ -116,6 +185,17 @@ class Tracker:
         return frame 
     
     def draw_team_ball_control(self,frame,frame_num,team_ball_control):
+        """
+        Overlays the team ball possession statistics onto a frame.
+
+        Args:
+            frame (np.ndarray): Renderable video frame.
+            frame_num (int): Specific frame count in question.
+            team_ball_control (np.ndarray): Sequence recording team possession per frame.
+
+        Returns:
+            np.ndarray: Modified given frame resolving rendered text statistics.
+        """
         overlay=frame.copy()
         cv2.rectangle(overlay,(1350,850),(1900,970),(255,255,255),-1)
         alpha=0.4
@@ -131,6 +211,17 @@ class Tracker:
         return frame
 
     def draw_annotations(self,video_frames,tracks,team_ball_control):
+        """
+        Applies necessary tracking outlines such as circles and triangles on valid items.
+
+        Args:
+            video_frames (list): Unmodified video frames sequence.
+            tracks (dict): Frame by frame tracking dictionary per identified entities.
+            team_ball_control (np.ndarray): Array determining possession data across time.
+
+        Returns:
+            list: Contains all the newly-rendered sequence of visually-altered frames.
+        """
         output_frames=[]
         for frame_num,frame in enumerate(video_frames):
             frame=frame.copy()

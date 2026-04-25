@@ -5,7 +5,17 @@ import os
 from utils import measure_distance,measure_xy_distance
 
 class CameraMovementEstimator():
+    """
+    A class to estimate camera movement between video frames using optical flow.
+    """
+
     def __init__(self,frame):
+        """
+        Initializes the CameraMovementEstimator with the first frame of the video.
+
+        Args:
+            frame (np.ndarray): The first frame of the video used to initialize feature tracking.
+        """
         self.minimum_distance = 5
 
         self.lk_params = dict(
@@ -28,6 +38,16 @@ class CameraMovementEstimator():
         )
 
     def add_adjust_positions_to_tracks(self,tracks, camera_movement_per_frame):
+        """
+        Adjusts the positions of tracked objects based on the camera movement.
+
+        Args:
+            tracks (dict): A dictionary containing tracking information for various objects (e.g., players, ball).
+            camera_movement_per_frame (list): A list where each element represents the camera movement [x, y] for the corresponding frame.
+
+        Returns:
+            None: The function modifies the track dictionaries in place by adding a 'position_adjusted' key.
+        """
         for object, object_tracks in tracks.items():
             for frame_num, track in enumerate(object_tracks):
                 for track_id, track_info in track.items():
@@ -39,6 +59,17 @@ class CameraMovementEstimator():
 
 
     def get_camera_movement(self,frames,read_from_stub=False, stub_path=None):
+        """
+        Calculates the camera movement for a sequence of frames.
+
+        Args:
+            frames (list): A list of video frames (numpy arrays).
+            read_from_stub (bool, optional): If True, attempts to load the calculated camera movement from a stub file. Defaults to False.
+            stub_path (str, optional): The path to the stub file to read from or write to. Defaults to None.
+
+        Returns:
+            list: A list of [x, y] camera movements for each frame in the video.
+        """
         # Read the stub 
         if read_from_stub and stub_path is not None and os.path.exists(stub_path):
             with open(stub_path,'rb') as f:
@@ -78,6 +109,16 @@ class CameraMovementEstimator():
         return camera_movement
     
     def draw_camera_movement(self,frames, camera_movement_per_frame):
+        """
+        Draws the estimated camera movement text on the given video frames.
+
+        Args:
+            frames (list): A list of video frames.
+            camera_movement_per_frame (list): The list containing [x, y] camera movements for each frame.
+
+        Returns:
+            list: A list of modified frames with the camera movement text overlaid.
+        """
         output_frames=[]
 
         for frame_num, frame in enumerate(frames):
